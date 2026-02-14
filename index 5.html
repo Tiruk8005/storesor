@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Store SOR</title>
+<style>
+body { font-family: Arial; margin: 0; background: #f5f5f5; }
+header { background: #00aaff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+header h1 { margin: 0; font-size: 24px; }
+button.login-btn { background: #ffffff; color: #00aaff; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 20px; }
+.product { background: white; border-radius: 10px; padding: 15px; text-align: center; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+.product h3 { margin: 10px 0; }
+.product p { margin: 5px 0; }
+button { background: #00aaff; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
+button:disabled { background: grey; cursor: not-allowed; }
+.cart { position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.2); max-width: 250px; }
+.cart h3 { margin-top: 0; }
+.cart-item { display: flex; justify-content: space-between; margin: 5px 0; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Store SOR</h1>
+    <button class="login-btn" onclick="loginDiscord()">تسجيل دخول</button>
+</header>
+
+<div class="container" id="products"></div>
+
+<div class="cart" id="cart">
+    <h3>السلة</h3>
+    <div id="cart-items"></div>
+    <button onclick="checkout()">شراء</button>
+</div>
+
+<script>
+// بيانات المنتجات
+const products = [
+    {name: "برمجة سيرفرات", stock: true},
+    {name: "بوستات", stock: false},
+    {name: "نيترو", stock: false},
+    {name: "صناعة بوتات", stock: true},
+    {name: "برمجة تيك توك", stock: true},
+    {name: "صناعة شعار أو صورة", stock: true},
+];
+
+let cart = [];
+let loggedIn = false;
+let user = {username: "Guest", avatar: ""};
+
+// تسجيل دخول وهمي
+function loginDiscord() {
+    loggedIn = true;
+    user = {username: "DiscordUser#1234", avatar: "https://via.placeholder.com/40"};
+    document.querySelector(".login-btn").style.display = "none";
+    const header = document.querySelector("header");
+    const img = document.createElement("img");
+    img.src = user.avatar;
+    img.style.borderRadius = "50%";
+    img.style.width = "40px";
+    header.appendChild(img);
+}
+
+// عرض المنتجات
+const container = document.getElementById("products");
+products.forEach((p,i)=>{
+    const div = document.createElement("div");
+    div.className = "product";
+    div.innerHTML = `
+        <h3>${p.name}</h3>
+        <p>${p.stock ? "متاحة" : "نفذت الكمية"}</p>
+        <button ${p.stock ? "" : "disabled"} onclick="addToCart(${i})">إضافة للسلة</button>
+    `;
+    container.appendChild(div);
+});
+
+// إضافة للسلة
+function addToCart(index) {
+    const product = products[index];
+    const existing = cart.find(p=>p.name===product.name);
+    if(existing){ existing.qty++; } else { cart.push({...product, qty:1}); }
+    updateCart();
+}
+
+// تحديث السلة
+function updateCart() {
+    const cartItems = document.getElementById("cart-items");
+    cartItems.innerHTML = "";
+    cart.forEach(p=>{
+        const div = document.createElement("div");
+        div.className = "cart-item";
+        div.innerHTML = `
+            <span>${p.name} x ${p.qty}</span>
+            <span>
+                <button onclick="changeQty('${p.name}',-1)">-</button>
+                <button onclick="changeQty('${p.name}',1)">+</button>
+            </span>
+        `;
+        cartItems.appendChild(div);
+    });
+}
+
+// تعديل الكمية
+function changeQty(name,amount){
+    const item = cart.find(p=>p.name===name);
+    if(item){ item.qty += amount; if(item.qty <=0) cart = cart.filter(p=>p.name!==name);}
+    updateCart();
+}
+
+// شراء وإرسال الطلب
+function checkout() {
+    if(!loggedIn){ alert("يجب تسجيل الدخول أولاً!"); return; }
+    if(cart.length===0){ alert("السلة فارغة!"); return; }
+
+    const orderData = { user: user.username, products: cart };
+    fetch("http://localhost:3001/api/orders",{
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(orderData)
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            alert(`تم إنشاء الطلب! رقم الطلب: ${data.orderNumber}`);
+            cart = [];
+            updateCart();
+        }
+    });
+}
+</script>
+
+</body>
+</html>
